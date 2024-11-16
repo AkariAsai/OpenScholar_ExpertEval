@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Science Assistant Human Evaluation</title>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.png') }}">
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="row">
+        <div id="nav" class="col-md-3">
+            <!-- Title -->
+            <h2 class="text-center" id="title"><a href="/" style="text-decoration: none">Science Assistant Human Evaluation</a></h2>
+            <div class="row mb-4" id="login-info">
+                <div class="col-12 text-center">
+                    <p>Annotation instruction is available at <a href="https://docs.google.com/document/d/1Dym9HZc1UiapmTRyYX5LVKIYq8g2HykJVhQifVMuMno/edit?usp=sharing"  target="_blank">here</a>. If you find the provided instance is too hard, please skip this </p>
+                </div>
+            </div>
+            <!-- Log-in info -->
+            <div class="row mb-4" id="login-info">
+                <div class="col-12 text-center">
+                    <!-- check if logged in -->
+                    {% if current_user.is_authenticated %}
+                        You are logged in as <b>{{ current_user.username }}</b>. [<a href="{{ url_for('logout') }}">Log out</a>]
+                    {% else %}
+                        You need to log in to submit evaluation. [<a href="{{ url_for('login') }}">Log in</a>]
+                    {% endif %}
+                </div>
+            </div>
+
+
+            <div class="row" id="instance-info">
+                <div class="col-2 text-center">
+                    <button id="prev-button" class="btn btn-sm btn-primary"><</button>
+                </div>
+                <div class="col-8 text-center">
+                    <h4 id="instance-id" class="mb-5 text-center">Instance {{ index }}</h4>
+                </div>
+                <div class="col-2 text--center">
+                    <button id="next-button" class="btn btn-sm btn-primary">></button>
+                </div>
+            </div>
+
+            <form>
+                <div class="form-group">
+                    <p>Do you find the instance interesting, invalid, or too hard to complete? Please let us know by giving feedback here! (Optional)</p>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="instance-quality" id="instance-quality-good" value="good">
+                        <label class="form-check-label" for="instance-quality-good">This example is interesting.</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="instance-quality" id="instance-quality-bad" value="bad">
+                        <label class="form-check-label" for="instance-quality-bad">This example is invalid.</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="instance-quality" id="instance-quality-hard" value="hard">
+                        <label class="form-check-label" for="instance-quality-bad">This example is too hard for me.</label>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label for="comment">Comment:</label>
+                    <textarea class="form-control" id="comment" name="comment" rows="4"></textarea>
+                </div>
+                <div class="mt-2 text-center">
+                    <button id="feedback-submit" type="submit" class="btn btn-primary mt-2">Provide feedback</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="col-md-9">
+            <div id="history-message-region">
+                <!-- add messages dynamically here. Following is the initial one. -->
+                <div class="row">
+                    <div class="col icon-col">
+                        <button class="role-icon">🧑</button>
+                    </div>
+                    <div class="col message-col history-message-col">
+                        <xmp class="message-text">Loading instance.</xmp>
+                    </div>
+                </div>
+            </div>
+            <div id="model-outputs-region">
+                <div class="row">
+                    <div class="col icon-col">
+                        <button class="role-icon">🤖</button>
+                    </div>
+                    <div class="col message-col">
+                        <p class="message-text">Here are responses from two AI models.</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12 ">
+                        <div class="row text-center">
+                            <div class="d-flex justify-content-center">
+                                <button class="completion-icon">A</button>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-8 ">
+                                <h3>Answer</h3>
+                                <div class="col completion-col" id="completion-A-col">
+                                    <xmp class="message-text">Loading model outputs ... </xmp>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <h3>References</h3>
+                                <div class="col completion-col" id="completion-A-col_ref">
+                                    <xmp class="message-text">Loading model outputs ... </xmp>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+        </div>
+            <div id="evaluation-region">
+                <div class="row">
+                    <div class="col icon-col">
+                        <button class="role-icon">📝</button>
+                    </div>
+                    <div class="col message-col">
+                        <h5>Now please evaluate the two outputs based on your knowledge, preference, and any external tools (e.g., Google Search). See the detailed rubrics. For each aspect, please check individual rubrics from the link.</h5>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col icon-col">
+                    </div>
+                    <div class="col">
+                        <form style="font-size: 18px;">
+                            <div class="form-group eval-form-item">
+                                <p>Q1(a): <b>Organization: </b>Evaluate if the answer is coherent and well-structured with clear logical flow and organization.
+                                </br>
+                                    Read the score rubrics carefully and give score from 1 to 5.
+                                    <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_a_organization" aria-expanded="false" aria-controls="collapse_a_organization">
+                                    Show rubrics
+                                    </button></p>
+                                  <div class="collapse" id="collapse_a_organization">
+                                    <div class="card card-body">
+                                        <h3>Organization and Coherence</h3>
+                                        <p>Evaluate if the answer is well-organized and logically structured.</p>
+                                        <h5>Score: 1 - Poor Organization</h5>
+                                        <ul>
+                                          <li>The response is disorganized, with no clear structure, and points are scattered without any logical order, making it difficult to follow.</li>
+                                          <li>The text lacks coherence, and there are contradictions or irrelevant repetitions throughout.</li>
+                                        </ul>
+                                        <h5>Score: 2 - Basic Organization</h5>
+                                        <ul>
+                                          <li>The response has some organization, but the structure is inconsistent.</li>
+                                          <li>There are occasional lapses in coherence, with minor contradictions or repetitive statements that disrupt the overall clarity.</li>
+                                        </ul>
+
+                                        <h5>Score: 3 - Moderate Organization</h5>
+                                        <ul>
+                                          <li>The response is generally well-organized, with a clear structure that is mostly maintained; points are grouped logically, though there may be some minor lapses in flow or coherence. For instance, the answer has several clear paragraphs, each of which clearly discusses some core points.</li>
+                                          <li>The text is mostly clear, with only occasional repetition or slight contradictions.</li>
+                                        </ul>
+                                        <h5>Score: 4 - Strong Organization</h5>
+                                        <ul>
+                                          <li>The response is well-organized, with a clear and logical structure that is followed consistently; Points are effectively grouped, and the flow is smooth. Several answers may come with clear opening or section / paragraph headers, which further improve the readability, although there are minor points (e.g., how to group papers together, section headers) that can be improved.</li>
+                                          <li>There may be minor lapses in coherence, but overall, the response is clear and easy to follow and there is minimal repetition or contradictions.</li>
+                                        </ul>
+                                        <h5>Score: 5 - Exceptional Organization</h5>
+                                        <ul>
+                                          <li>The response is exceptionally well-organized, with a flawless logical structure, and points are grouped perfectly, and the flow between them is seamless. The answer consists of multiple discussion points,  come with clear discourse markers or paragraphs / section headers. No need to fix the structure.</li>
+                                          <li>The text is coherent throughout, with no contradictions or unnecessary repetition.</li>
+                                        </ul>
+                                    </div>
+                                  </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-fluent" id="a-is-fluent-1" value="1">
+                                    <label class="form-check-label" for="a-is-fluent-1">1 </label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-fluent" id="a-is-fluent-2" value="2">
+                                    <label class="form-check-label" for="a-is-fluent-2">2</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-fluent" id="a-is-fluent-3" value="3">
+                                    <label class="form-check-label" for="a-is-fluent-3">3</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-fluent" id="a-is-fluent-4" value="4">
+                                    <label class="form-check-label" for="a-is-fluent-4">4</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-fluent" id="a-is-fluent-5" value="5">
+                                    <label class="form-check-label" for="a-is-fluent-5">5</label>
+                                </div>
+                            </div>
+                            <div class="form-group eval-form-item">
+                                <p>Q1(b): <b>Coverage and Amount of information: </b> Evaluate if the output provides sufficient coverage and amount of information.
+                                    </br>
+                                    Read the score rubrics carefully and give score from 1 to 5.
+                                    <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_a_coverage" aria-expanded="false" aria-controls="collapse_a_coverage">
+                                    Show rubrics
+                                    </button>
+                                </p>
+                                  <div class="collapse" id="collapse_a_coverage">
+                                    <div class="card card-body">
+                                        <h3>Coverage and Amount (Depth) of Information</h3>
+                                        <p>Evaluate if the output provides sufficient coverage and amount of information. The output should:</p>
+                                        <ul>
+                                          <li>① (coverage) Offer a comprehensive review of the area of interest, citing a diverse range of representative papers and discussing a variety of sources, not just a few (1-2 papers).</li>
+                                          <li>② (depth) Provide enough relevant information to understand each discussion point.</li>
+                                        </ul>
+
+                                        <h5>Score: 1</h5>
+                                        <ul>
+                                          <li><b>Severely Lacking Coverage:</b> The output lacks coverage of several core lines of research or focuses predominantly on a single line of work, missing a holistic view of the area.</li>
+                                          <li><b>Greatly Limited Depth of Information:</b> The output either lacks essential details needed to fully understand the topic (e.g., definitions of methods, relationships between methods).</li>
+                                        </ul>
+
+                                        <h5>Score: 2</h5>
+                                        <ul>
+                                          <li><b>Partial Coverage:</b> The output covers some key aspects of the area but misses significant lines of research or focuses too narrowly on a few sources. It lacks a well-rounded view and fails to adequately represent the diversity of work in the field.</li>
+                                          <li><b>Limited Amount of Information:</b> The response provides some relevant information but leaves out important details that would help in understanding the topic fully.</li>
+                                        </ul>
+
+                                        <h5>Score: 3</h5>
+                                        <ul>
+                                          <li><b>Acceptable Coverage / Overview:</b> The output discusses several representative works and provides a satisfactory overview of the area. However, including more papers or discussion points could enhance the answer significantly. It addresses the core aspects of the question but may miss some details.</li>
+                                          <li><b>Acceptable Amount of Relevant Information:</b> The output provides a reasonable amount of relevant information, though it may lack some helpful details.</li>
+                                        </ul>
+
+                                        <h5>Score: 4</h5>
+                                        <ul>
+                                          <li><b>Good Coverage:</b> The output offers good coverage of the area, discussing a variety of representative papers and sources. While it provides a broad overview, it may miss a few minor areas or additional papers that could enhance the comprehensiveness.</li>
+                                          <li><b>Mostly Sufficient Amount of Information:</b> The response includes most of the necessary and relevant information to understand the topic. It avoids excessive irrelevant details, but a few points might benefit from deeper exploration or more specific examples.</li>
+                                        </ul>
+
+                                        <h5>Score: 5</h5>
+                                        <ul>
+                                          <li><b>Comprehensive Coverage:</b> The answer covers a diverse range of papers and viewpoints, offering a thorough overview of the area. It includes additional important discussion points not explicitly mentioned in the original question.</li>
+                                          <li><b>Necessary and Sufficient Amount of Information:</b> The response provides all necessary and sufficient information.</li>
+                                        </ul>
+                                    </div>
+                                  </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-sufficient" id="a-is-sufficient-1" value="1">
+                                    <label class="form-check-label" for="a-is-sufficient-1">1</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-sufficient" id="a-is-sufficient-2" value="2">
+                                    <label class="form-check-label" for="a-is-sufficient-2">2</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-sufficient" id="a-is-sufficient-3" value="3">
+                                    <label class="form-check-label" for="a-is-sufficient-3">3</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-sufficient" id="a-is-sufficient-4" value="4">
+                                    <label class="form-check-label" for="a-is-sufficient-4">4</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-sufficient" id="a-is-sufficient-5" value="5">
+                                    <label class="form-check-label" for="a-is-sufficient-5">5</label>
+                                </div>
+                            </div>
+                            <div class="form-group eval-form-item">
+                                <p>Q1(c): <b>Relevance: </b> Evaluate if the response stays on topic and maintain a clear focus to provide a useful response to the question.
+                                </br>
+                                    Read the score rubrics carefully and give score from 1 to 5.
+                                    <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_a_relevance" aria-expanded="false" aria-controls="collapse_a_relevance">
+                                    Show rubrics
+                                    </button>
+                                </p>
+                                  <div class="collapse" id="collapse_a_relevance">
+                                    <div class="card card-body">
+                                        <h3>Relevance</h3>
+                                        <p>Evaluate if the response stays on topic and maintains a clear focus to provide a useful response to the question. Specifically, the output should:</p>
+                                        <ul>
+                                            <li>① Fully address the core points of the original question and satisfy your information needs if they are factual.</li>
+                                            <li>② Not contain a lot of minor information that is not related to the original question.</li>
+                                          </ul>
+
+                                          <h5>Score: 1 - Off-Topic</h5>
+                                          <ul>
+                                            <li>The content significantly deviates from the original question, making it difficult to discern its relevance or distracts the user.</li>
+                                          </ul>
+
+                                          <h5>Score: 2 - Frequently Off-Topic with Limited Focus</h5>
+                                          <ul>
+                                            <li>The response addresses the question to some extent but often strays off-topic.</li>
+                                            <li>There are several sections with irrelevant information or tangential points that do not contribute to answering the main question.</li>
+                                            <li>These distractions make it difficult to maintain a clear focus and reduce the overall usefulness of the response.</li>
+                                          </ul>
+
+                                          <h5>Score: 3 - Somewhat On-Topic but with Several Digressions or Irrelevant Information</h5>
+                                          <ul>
+                                            <li>While the response still centers around the original question, there are frequent deviations that distract from the main question or redundant information.</li>
+                                          </ul>
+
+                                          <h5>Score: 4 - Mostly On-Topic with Minor Deviations</h5>
+                                          <ul>
+                                            <li>The response stays largely on-topic, with a clear focus on addressing the question.</li>
+                                            <li>However, there may be a few minor digressions or slightly irrelevant details that momentarily detract from the main focus.</li>
+                                            <li>These deviations are infrequent and do not significantly undermine the overall clarity or usefulness of the response.</li>
+                                          </ul>
+
+                                          <h5>Score: 5 - Focused and Entirely On-Topic</h5>
+                                          <ul>
+                                            <li>The response remains tightly centered on the subject matter with enough depth and coverage of the core information.</li>
+                                            <li>Every piece of information contributes directly to a comprehensive understanding of the topic.</li>
+                                          </ul>
+                                    </div>
+                                  </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-relevant" id="a-is-relevant-1" value="1">
+                                    <label class="form-check-label" for="a-is-relevant-1">1</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-relevant" id="a-is-relevant-2" value="2">
+                                    <label class="form-check-label" for="a-is-relevant-2">2</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-relevant" id="a-is-relevant-3" value="3">
+                                    <label class="form-check-label" for="a-is-relevant-3">3</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-relevant" id="a-is-relevant-4" value="4">
+                                    <label class="form-check-label" for="a-is-relevant-4">4</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-relevant" id="a-is-relevant-5" value="5">
+                                    <label class="form-check-label" for="a-is-relevant-5">5</label>
+                                </div>
+                            </div>
+                            <div class="form-group eval-form-item">
+                                <p>Q1(d): <b>Overall Usefulness: </b> Do you think the provided answers are overall helpful and assist your literature review? </p>
+                                Read the score rubrics carefully and give score from 1 to 5.
+                                <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_a_overall" aria-expanded="false" aria-controls="collapse_a_overall">
+                                Show rubrics
+                                </button>
+                            </p>
+                              <div class="collapse" id="collapse_a_overall">
+                                <div class="card card-body">
+                                    <h3>Overall Helpfulness</h3>
+                                      <h5>Score: 1 - Unhelpful</h5>
+                                      <ul>
+                                        <li>The response does not answer the question or provide rather confusing information. </li>
+                                        <li>It does not serve as a useful starting point for learning or writing about the area or understanding the literature. </li>
+                                      </ul>
+
+                                      <h5>Score: 2 - Better than Searching from Scratch, but Limited Utility</h5>
+                                      <ul>
+                                        <li>The response provides at least one helpful paper that I can take a closer look at. </li>
+                                        <li>However, overall the discussion in the answer is somewhat irrelevant and does not provide helpful information. </li>
+                                      </ul>
+
+                                      <h5>Score: 3 - Provides Useful Discussions and Papers, Though Individual Review is Needed.</h5>
+                                      <ul>
+                                        <li>The response is generally helpful and provides at least 2-3 helpful papers that I wasn't aware of. I can start looking at some of the suggested papers.</li>
+                                        <li>It provides some good overview of the areas and multiple viewpoints, which I can dive into. </li>
+                                        <li>Yet, I may need to verify some details or consult additional core research papers to ensure completeness.</li>
+                                      </ul>
+
+                                      <h5>Score: 4 - Useful</h5>
+                                      <ul>
+                                        <li>The response offers a solid summary of the area of interest and provides a valuable set of papers highly relevant to my question. </li>
+                                        <li>It includes a thorough overview and detailed information. </li>
+                                        <li>While I may need to verify minor details from 1-2 specific papers, the overall answer is quite useful and requires minimal additional editing.</li>
+                                      </ul>
+
+                                      <h5>Score: 5 - Super Useful</h5>
+                                      <ul>
+                                        <li>The response provides a comprehensive overview of the area and fully answers my question.</li>
+                                        <li>I can trust the information provided and do not need to search for additional papers or check details on my own.</li>
+                                      </ul>
+                                </div>
+                              </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-acceptable" id="a-is-acceptable-1" value="1">
+                                    <label class="form-check-label" for="a-is-acceptable-1">1</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-acceptable" id="a-is-acceptable-2" value="2">
+                                    <label class="form-check-label" for="a-is-acceptable-2">2 </label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-acceptable" id="a-is-acceptable-3" value="3">
+                                    <label class="form-check-label" for="a-is-acceptable-3">3</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-acceptable" id="a-is-acceptable-4" value="4">
+                                    <label class="form-check-label" for="a-is-acceptable-4">4</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="a-is-acceptable" id="a-is-acceptable-5" value="5">
+                                    <label class="form-check-label" for="a-is-acceptable-5">5</label>
+                                </div>
+                            </div>
+                        </div>
+                </div>
+            </div>
+             <div id="model-outputs-region">
+                <div class="row">
+                    <div class="col-12 ">
+                        <div class="row text-center">
+                            <div class="d-flex justify-content-center">
+                                <button class="completion-icon">B</button>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-8 ">
+                                <h3>Answer</h3>
+                                <div class="col completion-col" id="completion-B-col">
+                                    <xmp class="message-text">Loading model outputs ... </xmp>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <h3>References</h3>
+                                <div class="col completion-col" id="completion-B-col_ref">
+                                    <xmp class="message-text">Loading model outputs ... </xmp>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="evaluation-region">
+                            <div class="form-group eval-form-item">
+                                <p>Q2(a): <b>Organization: </b>Evaluate if the output B is coherent and well-structured with clear logical flow and organization.
+                                </br>
+                                    Read the score rubrics carefully and give score from 1 to 5.
+                                    <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_b_organization" aria-expanded="false" aria-controls="collapse_b_organization">
+                                    Show rubrics
+                                    </button></p>
+                                    <div class="collapse" id="collapse_b_organization">
+                                        <div class="card card-body">
+                                            <h3>Organization and Coherence</h3>
+                                            <p>Evaluate if the answer is well-organized and logically structured.</p>
+                                            <h5>Score: 1 - Poor Organization</h5>
+                                            <ul>
+                                              <li>The response is disorganized, with no clear structure, and points are scattered without any logical order, making it difficult to follow.</li>
+                                              <li>The text lacks coherence, and there are contradictions or irrelevant repetitions throughout.</li>
+                                            </ul>
+                                            <h5>Score: 2 - Basic Organization</h5>
+                                            <ul>
+                                              <li>The response has some organization, but the structure is inconsistent.</li>
+                                              <li>There are occasional lapses in coherence, with minor contradictions or repetitive statements that disrupt the overall clarity.</li>
+                                            </ul>
+
+                                            <h5>Score: 3 - Moderate Organization</h5>
+                                            <ul>
+                                              <li>The response is generally well-organized, with a clear structure that is mostly maintained; points are grouped logically, though there may be some minor lapses in flow or coherence. For instance, the answer has several clear paragraphs, each of which clearly discusses some core points.</li>
+                                              <li>The text is mostly clear, with only occasional repetition or slight contradictions.</li>
+                                            </ul>
+                                            <h5>Score: 4 - Strong Organization</h5>
+                                            <ul>
+                                              <li>The response is well-organized, with a clear and logical structure that is followed consistently; Points are effectively grouped, and the flow is smooth. Several answers may come with clear opening or section / paragraph headers, which further improve the readability, although there are minor points (e.g., how to group papers together, section headers) that can be improved.</li>
+                                              <li>There may be minor lapses in coherence, but overall, the response is clear and easy to follow and there is minimal repetition or contradictions.</li>
+                                            </ul>
+                                            <h5>Score: 5 - Exceptional Organization</h5>
+                                            <ul>
+                                              <li>The response is exceptionally well-organized, with a flawless logical structure, and points are grouped perfectly, and the flow between them is seamless. The answer consists of multiple discussion points,  come with clear discourse markers or paragraphs / section headers. No need to fix the structure.</li>
+                                              <li>The text is coherent throughout, with no contradictions or unnecessary repetition.</li>
+                                            </ul>
+                                        </div>
+                                      </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-fluent" id="b-is-fluent-1" value="1">
+                                    <label class="form-check-label" for="b-is-fluent-1">1 </label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-fluent" id="b-is-fluent-2" value="2">
+                                    <label class="form-check-label" for="b-is-fluent-2">2</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-fluent" id="b-is-fluent-3" value="3">
+                                    <label class="form-check-label" for="b-is-fluent-3">3 </label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-fluent" id="b-is-fluent-4" value="4">
+                                    <label class="form-check-label" for="b-is-fluent-4">4</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-fluent" id="b-is-fluent-5" value="5">
+                                    <label class="form-check-label" for="b-is-fluent-5">5</label>
+                                </div>
+                            </div>
+                            <div class="form-group eval-form-item">
+                                <p>Q2(b): <b>Coverage and Amount of information: </b> Evaluate if the output B provides sufficient coverage and amount of information.
+                                </br>
+                                Read the score rubrics carefully and give score from 1 to 5.
+                                <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_b_coverage" aria-expanded="false" aria-controls="collapse_b_coverage">
+                                Show rubrics
+                                </button>
+                            </p>
+                              <div class="collapse" id="collapse_b_coverage">
+                                <div class="card card-body">
+                                    <h3>Coverage and Amount (Depth) of Information</h3>
+                                    <p>Evaluate if the output provides sufficient coverage and amount of information. The output should:</p>
+                                    <ul>
+                                      <li>① (coverage) Offer a comprehensive review of the area of interest, citing a diverse range of representative papers and discussing a variety of sources, not just a few (1-2 papers).</li>
+                                      <li>② (depth) Provide enough relevant information to understand each discussion point.</li>
+                                    </ul>
+
+                                    <h5>Score: 1</h5>
+                                    <ul>
+                                      <li><b>Severely Lacking Coverage:</b> The output lacks coverage of several core lines of research or focuses predominantly on a single line of work, missing a holistic view of the area.</li>
+                                      <li><b>Greatly Limited Depth of Information:</b> The output either lacks essential details needed to fully understand the topic (e.g., definitions of methods, relationships between methods).</li>
+                                    </ul>
+
+                                    <h5>Score: 2</h5>
+                                    <ul>
+                                      <li><b>Partial Coverage:</b> The output covers some key aspects of the area but misses significant lines of research or focuses too narrowly on a few sources. It lacks a well-rounded view and fails to adequately represent the diversity of work in the field.</li>
+                                      <li><b>Limited Amount of Information:</b> The response provides some relevant information but leaves out important details that would help in understanding the topic fully.</li>
+                                    </ul>
+
+                                    <h5>Score: 3</h5>
+                                    <ul>
+                                      <li><b>Acceptable Coverage / Overview:</b> The output discusses several representative works and provides a satisfactory overview of the area. However, including more papers or discussion points could enhance the answer significantly. It addresses the core aspects of the question but may miss some details.</li>
+                                      <li><b>Acceptable Amount of Relevant Information:</b> The output provides a reasonable amount of relevant information, though it may lack some helpful details.</li>
+                                    </ul>
+
+                                    <h5>Score: 4</h5>
+                                    <ul>
+                                      <li><b>Good Coverage:</b> The output offers good coverage of the area, discussing a variety of representative papers and sources. While it provides a broad overview, it may miss a few minor areas or additional papers that could enhance the comprehensiveness.</li>
+                                      <li><b>Mostly Sufficient Amount of Information:</b> The response includes most of the necessary and relevant information to understand the topic. It avoids excessive irrelevant details, but a few points might benefit from deeper exploration or more specific examples.</li>
+                                    </ul>
+
+                                    <h5>Score: 5</h5>
+                                    <ul>
+                                      <li><b>Comprehensive Coverage:</b> The answer covers a diverse range of papers and viewpoints, offering a thorough overview of the area. It includes additional important discussion points not explicitly mentioned in the original question.</li>
+                                      <li><b>Necessary and Sufficient Amount of Information:</b> The response provides all necessary and sufficient information.</li>
+                                    </ul>
+                                </div>
+                              </div>
+                              <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="b-is-sufficient" id="b-is-sufficient-1" value="1">
+                                <label class="form-check-label" for="b-is-sufficient-1">1</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="b-is-sufficient" id="b-is-sufficient-2" value="2">
+                                <label class="form-check-label" for="b-is-sufficient-2">2</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="b-is-sufficient" id="b-is-sufficient-3" value="3">
+                                <label class="form-check-label" for="b-is-sufficient-3">3</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="b-is-sufficient" id="b-is-sufficient-4" value="4">
+                                <label class="form-check-label" for="b-is-sufficient-4">4</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="b-is-sufficient" id="b-is-sufficient-5" value="5">
+                                <label class="form-check-label" for="b-is-sufficient-5">5</label>
+                            </div>
+                            </div>
+                            <div class="form-group eval-form-item">
+                                <p>Q2(c): <b>Relevance: </b> Evaluate if the output B stays on topic and maintain a clear focus to provide a useful response to the question.
+                                </br>
+                                    Read the score rubrics carefully and give score from 1 to 5.
+                                    <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_b_relevance" aria-expanded="false" aria-controls="collapse_b_relevance">
+                                    Show rubrics
+                                    </button>
+                                </p>
+                                  <div class="collapse" id="collapse_b_relevance">
+                                    <div class="card card-body">
+                                        <h3>Relevance</h3>
+                                        <p>Evaluate if the response stays on topic and maintains a clear focus to provide a useful response to the question. Specifically, the output should:</p>
+                                        <ul>
+                                            <li>① Fully address the core points of the original question and satisfy your information needs if they are factual.</li>
+                                            <li>② Not contain a lot of minor information that is not related to the original question.</li>
+                                          </ul>
+
+                                          <h5>Score: 1 - Off-Topic</h5>
+                                          <ul>
+                                            <li>The content significantly deviates from the original question, making it difficult to discern its relevance or distracts the user.</li>
+                                          </ul>
+
+                                          <h5>Score: 2 - Frequently Off-Topic with Limited Focus</h5>
+                                          <ul>
+                                            <li>The response addresses the question to some extent but often strays off-topic.</li>
+                                            <li>There are several sections with irrelevant information or tangential points that do not contribute to answering the main question.</li>
+                                            <li>These distractions make it difficult to maintain a clear focus and reduce the overall usefulness of the response.</li>
+                                          </ul>
+
+                                          <h5>Score: 3 - Somewhat On-Topic but with Several Digressions or Irrelevant Information</h5>
+                                          <ul>
+                                            <li>While the response still centers around the original question, there are frequent deviations that distract from the main question or redundant information.</li>
+                                          </ul>
+
+                                          <h5>Score: 4 - Mostly On-Topic with Minor Deviations</h5>
+                                          <ul>
+                                            <li>The response stays largely on-topic, with a clear focus on addressing the question.</li>
+                                            <li>However, there may be a few minor digressions or slightly irrelevant details that momentarily detract from the main focus.</li>
+                                            <li>These deviations are infrequent and do not significantly undermine the overall clarity or usefulness of the response.</li>
+                                          </ul>
+
+                                          <h5>Score: 5 - Focused and Entirely On-Topic</h5>
+                                          <ul>
+                                            <li>The response remains tightly centered on the subject matter with enough depth and coverage of the core information.</li>
+                                            <li>Every piece of information contributes directly to a comprehensive understanding of the topic.</li>
+                                          </ul>
+                                    </div>
+                                  </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-relevant" id="b-is-relevant-1" value="1">
+                                    <label class="form-check-label" for="b-is-relevant-1">1</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-relevant" id="b-is-relevant-2" value="2">
+                                    <label class="form-check-label" for="b-is-relevant-2">2</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-relevant" id="b-is-relevant-3" value="3">
+                                    <label class="form-check-label" for="b-is-relevant-3">3</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-relevant" id="b-is-relevant-4" value="4">
+                                    <label class="form-check-label" for="b-is-relevant-4">4</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-relevant" id="b-is-relevant-5" value="5">
+                                    <label class="form-check-label" for="b-is-relevant-5">5</label>
+                                </div>
+                            </div>
+                            <div class="form-group eval-form-item">
+                                <p>Q2(d): <b>Overall Usefulness: </b> Do you think the provided answer B is overall helpful and assist your literature review? </p>
+                                Read the score rubrics carefully and give score from 1 to 5.
+                                <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_b_overall" aria-expanded="false" aria-controls="collapse_a_overall">
+                                Show rubrics
+                                </button>
+                            </p>
+                              <div class="collapse" id="collapse_b_overall">
+                                <div class="card card-body">
+                                    <h3>Overall Helpfulness</h3>
+                                      <h5>Score: 1 - Unhelpful</h5>
+                                      <ul>
+                                        <li>The response does not answer the question or provide rather confusing information. </li>
+                                        <li>TIt does not serve as a useful starting point for learning or writing about the area or understanding the literature. </li>
+                                      </ul>
+
+                                      <h5>Score: 2 - Better than Searching from Scratch, but Limited Utility</h5>
+                                      <ul>
+                                        <li>The response provides at least one helpful paper that I can take a closer look at. </li>
+                                        <li>However, overall the discussion in the answer is somewhat irrelevant and does not provide helpful information. </li>
+                                      </ul>
+
+                                      <h5>Score: 3 - Provides Useful Discussions and Papers, Though Individual Review is Needed.</h5>
+                                      <ul>
+                                        <li>The response is generally helpful and provides at least 2-3 helpful papers that I wasn’t aware of. I can start looking at some of the suggested papers.</li>
+                                        <li>It provides some good overview of the areas and multiple viewpoints, which I can dive into. </li>
+                                        <li>Yet, I may need to verify some details or consult additional core research papers to ensure completeness.</li>
+                                      </ul>
+
+                                      <h5>Score: 4 - Useful</h5>
+                                      <ul>
+                                        <li>The response offers a solid summary of the area of interest and provides a valuable set of papers highly relevant to my question. </li>
+                                        <li>It includes a thorough overview and detailed information. </li>
+                                        <li>While I may need to verify minor details from 1-2 specific papers, the overall answer is quite useful and requires minimal additional editing.</li>
+                                      </ul>
+
+                                      <h5>Score: 5 - Super Useful</h5>
+                                      <ul>
+                                        <li>The response provides a comprehensive overview of the area and fully answers my question.</li>
+                                        <li>I can trust the information provided and do not need to search for additional papers or check details on my own.</li>
+                                      </ul>
+                                </div>
+                              </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-acceptable" id="b-is-acceptable-1" value="1">
+                                    <label class="form-check-label" for="b-is-acceptable-1">1</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-acceptable" id="b-is-acceptable-2" value="2">
+                                    <label class="form-check-label" for="b-is-acceptable-2">2</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-acceptable" id="b-is-acceptable-3" value="3">
+                                    <label class="form-check-label" for="b-is-acceptable-3">3</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-acceptable" id="b-is-acceptable-4" value="4">
+                                    <label class="form-check-label" for="b-is-acceptable-4">4</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="b-is-acceptable" id="b-is-acceptable-5" value="5">
+                                    <label class="form-check-label" for="b-is-acceptable-5">5</label>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="form-group eval-form-item">
+                                <div class="col message-col">
+                                    <h5>Finally, tell us which answer you liked more!</h5>
+                                </div>
+                                <p>Q3: Please choose the response that you prefer (based on helpfulness) and give explanation on why you think one is better than the other.</p>
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="preference-selection" id="preference-selection-a-better" value="a-is-better" autocomplete="off">
+                                    <label class="btn btn-secondary" for="preference-selection-a-better" style="font-size: 15px;">A is better</label>
+
+                                    <input type="radio" class="btn-check" name="preference-selection" id="preference-selection-tie" value="tie" autocomplete="off">
+                                    <label class="btn btn-secondary" for="preference-selection-tie" style="font-size: 15px;">Tie</label>
+
+                                    <input type="radio" class="btn-check" name="preference-selection" id="preference-selection-b-better" value="b-is-better" autocomplete="off">
+                                    <label class="btn btn-secondary" for="preference-selection-b-better" style="font-size: 15px;">B is better</label>
+                                </div>
+                                <div class="form-group">
+                                    <label for="explanation">Explanation</label>
+                                    <input class="form-control" id="explanation" aria-describedby="explanation" placeholder="Enter Explanations">
+                                    <small id="explanationHelp" class="form-text text-muted">Please enter your explanation for why you think the model you chose is better than the other.</small>
+                                </div>
+                            </div>
+                            <div class="mt-5" style="text-align: center;">
+                                <button type="submit" class="btn btn-primary" id="evaluation-submit">Submit</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+<script type="text/javascript">
+    var instance_index = {{ index }};
+    {% if current_user.is_authenticated %}
+        var is_authenticated = true;
+        var username = "{{ current_user.username }}";
+    {% else %}
+        var is_authenticated = false;
+        var username = "";
+    {% endif %}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked@3.0.7/marked.min.js"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+
+</html>
