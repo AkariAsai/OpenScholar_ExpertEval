@@ -2,7 +2,7 @@
 
 This folder contains the code for the human eval annotation interface used in the paper [OpenScholar: Synthesizing Scientific Literature with Retrieval-augmented LMs](https://allenai.org/blog/openscholar).
 
-**Acknowledgement:** The code is based on [allenai/open-instruct](https://github.com/allenai/open-instruct/tree/main/human_eval), with modifications to support (1) RAG evaluations and (2) add fine-grained evaluations. Thanks the Tulu authors!
+**Acknowledgement:** The code is based on [allenai/open-instruct](https://github.com/allenai/open-instruct/tree/main/human_eval), with modifications to support (1) RAG evaluations and (2) add fine-grained evaluations. Thanks to the Tulu authors!
 
 ## Installation
 
